@@ -26,3 +26,5 @@ COPY --from=builder /app/main .
 # Run the application
 CMD ["./main"]
 
+
+
