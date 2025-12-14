@@ -89,14 +89,40 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          echo "$DOCKER_PASSWORD" | docker login docker.io -u "$DOCKER_USERNAME" --password-stdin || {
-            echo "Docker login failed!"
-            echo "Please verify:"
-            echo "1. Username is correct (not email): $DOCKER_USERNAME"
-            echo "2. Token is a valid Personal Access Token (starts with dckr_pat_)"
-            echo "3. Token has 'Read, Write, Delete' permissions"
+          echo "Attempting to login to DockerHub..."
+          echo "Username: $DOCKER_USERNAME"
+          echo "Token prefix: ${DOCKER_PASSWORD:0:10}..."
+          
+          # Try login
+          if echo "$DOCKER_PASSWORD" | docker login docker.io -u "$DOCKER_USERNAME" --password-stdin; then
+            echo "Docker login successful!"
+          else
+            echo "=========================================="
+            echo "Docker login FAILED!"
+            echo "=========================================="
+            echo ""
+            echo "Troubleshooting steps:"
+            echo "1. Verify username is correct (NOT email):"
+            echo "   - Go to https://hub.docker.com"
+            echo "   - Click your profile → Account Settings"
+            echo "   - Your username is shown there (usually lowercase, no @ symbol)"
+            echo ""
+            echo "2. Verify token is correct:"
+            echo "   - Go to https://hub.docker.com/settings/security"
+            echo "   - Create NEW Access Token"
+            echo "   - Name: github-actions"
+            echo "   - Permissions: Read, Write, Delete (NOT Read-only)"
+            echo "   - Token should start with 'dckr_pat_'"
+            echo ""
+            echo "3. Update secrets:"
+            echo "   gh secret set DOCKERHUB_USERNAME"
+            echo "   gh secret set DOCKERHUB_TOKEN"
+            echo ""
+            echo "4. Test locally:"
+            echo "   echo 'YOUR_TOKEN' | docker login -u 'YOUR_USERNAME' --password-stdin"
+            echo ""
             exit 1
-          }
+          fi
       
       - name: Extract version from tag
         id: tag
