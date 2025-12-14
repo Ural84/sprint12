@@ -31,11 +31,15 @@ func getTestParcel() Parcel {
 // TestAddGetDelete проверяет добавление, получение и удаление посылки
 func TestAddGetDelete(t *testing.T) {
 	// prepare
-	db, err := sql.Open("sqlite", "tracker.db")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		require.NoError(t, err)
 	}
 	defer db.Close()
+	
+	err = initSchema(db)
+	require.NoError(t, err)
+	
 	store := NewParcelStore(db)
 	parcel := getTestParcel()
 
@@ -62,11 +66,15 @@ func TestAddGetDelete(t *testing.T) {
 // TestSetAddress проверяет обновление адреса
 func TestSetAddress(t *testing.T) {
 	// prepare
-	db, err := sql.Open("sqlite", "tracker.db")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		require.NoError(t, err)
 	}
 	defer db.Close()
+	
+	err = initSchema(db)
+	require.NoError(t, err)
+	
 	store := NewParcelStore(db)
 	parcel := getTestParcel()
 
@@ -92,11 +100,15 @@ func TestSetAddress(t *testing.T) {
 // TestSetStatus проверяет обновление статуса
 func TestSetStatus(t *testing.T) {
 	// prepare
-	db, err := sql.Open("sqlite", "tracker.db")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		require.NoError(t, err)
 	}
 	defer db.Close()
+	
+	err = initSchema(db)
+	require.NoError(t, err)
+	
 	store := NewParcelStore(db)
 	parcel := getTestParcel()
 
@@ -121,11 +133,15 @@ func TestSetStatus(t *testing.T) {
 // TestGetByClient проверяет получение посылок по идентификатору клиента
 func TestGetByClient(t *testing.T) {
 	// prepare
-	db, err := sql.Open("sqlite", "tracker.db")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		require.NoError(t, err)
 	}
 	defer db.Close()
+	
+	err = initSchema(db)
+	require.NoError(t, err)
+	
 	store := NewParcelStore(db)
 
 	parcels := []Parcel{
