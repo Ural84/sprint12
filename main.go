@@ -104,6 +104,12 @@ func main() {
 	}
 	defer db.Close()
 
+	err = initSchema(db)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	store := NewParcelStore(db)
 	service := NewParcelService(store)
 

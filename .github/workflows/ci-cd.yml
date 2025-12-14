@@ -24,7 +24,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
       
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -49,7 +49,7 @@ jobs:
   build-and-push:
     name: Build and Push to DockerHub
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
     needs: test
     
     steps:
@@ -59,15 +59,79 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
+      - name: Verify DockerHub credentials are set
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKER_USERNAME" ]; then
+            echo "Error: DOCKERHUB_USERNAME is not set"
+            exit 1
+          fi
+          if [ -z "$DOCKER_PASSWORD" ]; then
+            echo "Error: DOCKERHUB_TOKEN is not set"
+            exit 1
+          fi
+          USERNAME_LEN=${#DOCKER_USERNAME}
+          TOKEN_LEN=${#DOCKER_PASSWORD}
+          echo "DockerHub credentials are set"
+          echo "Username length: $USERNAME_LEN"
+          echo "Token length: $TOKEN_LEN"
+          if [[ "$DOCKER_USERNAME" == *"@"* ]]; then
+            echo "WARNING: Username appears to be an email. DockerHub requires username, not email!"
+          fi
+          if [[ ! "$DOCKER_PASSWORD" =~ ^dckr_pat_ ]]; then
+            echo "WARNING: Token doesn't start with 'dckr_pat_'. Make sure you're using a Personal Access Token, not a password!"
+          fi
+      
       - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "Attempting to login to DockerHub..."
+          echo "Username: $DOCKER_USERNAME"
+          echo "Token prefix: ${DOCKER_PASSWORD:0:10}..."
+          
+          # Try login
+          if echo "$DOCKER_PASSWORD" | docker login docker.io -u "$DOCKER_USERNAME" --password-stdin; then
+            echo "Docker login successful!"
+          else
+            echo "=========================================="
+            echo "Docker login FAILED!"
+            echo "=========================================="
+            echo ""
+            echo "Troubleshooting steps:"
+            echo "1. Verify username is correct (NOT email):"
+            echo "   - Go to https://hub.docker.com"
+            echo "   - Click your profile → Account Settings"
+            echo "   - Your username is shown there (usually lowercase, no @ symbol)"
+            echo ""
+            echo "2. Verify token is correct:"
+            echo "   - Go to https://hub.docker.com/settings/security"
+            echo "   - Create NEW Access Token"
+            echo "   - Name: github-actions"
+            echo "   - Permissions: Read, Write, Delete (NOT Read-only)"
+            echo "   - Token should start with 'dckr_pat_'"
+            echo ""
+            echo "3. Update secrets:"
+            echo "   gh secret set DOCKERHUB_USERNAME"
+            echo "   gh secret set DOCKERHUB_TOKEN"
+            echo ""
+            echo "4. Test locally:"
+            echo "   echo 'YOUR_TOKEN' | docker login -u 'YOUR_USERNAME' --password-stdin"
+            echo ""
+            exit 1
+          fi
       
       - name: Extract version from tag
         id: tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=latest" >> $GITHUB_OUTPUT
+          fi
       
       - name: Build and push
         uses: docker/build-push-action@v5
