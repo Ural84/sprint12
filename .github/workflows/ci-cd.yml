@@ -60,23 +60,43 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Verify DockerHub credentials are set
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+          if [ -z "$DOCKER_USERNAME" ]; then
             echo "Error: DOCKERHUB_USERNAME is not set"
             exit 1
           fi
-          if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+          if [ -z "$DOCKER_PASSWORD" ]; then
             echo "Error: DOCKERHUB_TOKEN is not set"
             exit 1
           fi
+          USERNAME_LEN=${#DOCKER_USERNAME}
+          TOKEN_LEN=${#DOCKER_PASSWORD}
           echo "DockerHub credentials are set"
+          echo "Username length: $USERNAME_LEN"
+          echo "Token length: $TOKEN_LEN"
+          if [[ "$DOCKER_USERNAME" == *"@"* ]]; then
+            echo "WARNING: Username appears to be an email. DockerHub requires username, not email!"
+          fi
+          if [[ ! "$DOCKER_PASSWORD" =~ ^dckr_pat_ ]]; then
+            echo "WARNING: Token doesn't start with 'dckr_pat_'. Make sure you're using a Personal Access Token, not a password!"
+          fi
       
       - name: Login to DockerHub
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          echo "$DOCKER_PASSWORD" | docker login docker.io -u "$DOCKER_USERNAME" --password-stdin || {
+            echo "Docker login failed!"
+            echo "Please verify:"
+            echo "1. Username is correct (not email): $DOCKER_USERNAME"
+            echo "2. Token is a valid Personal Access Token (starts with dckr_pat_)"
+            echo "3. Token has 'Read, Write, Delete' permissions"
+            exit 1
+          }
       
       - name: Extract version from tag
         id: tag
